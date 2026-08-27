@@ -1,0 +1,6 @@
+# exclude local-only SSL certificates
+key.pem
+cert.pem
+
+# exclude local environments
+.env
