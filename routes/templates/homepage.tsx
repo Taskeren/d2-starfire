@@ -79,6 +79,20 @@ export const Homepage = (loggedIn: boolean) => (
           <div id="stalefriendlist"></div>
         </article>
       </main>
+      <footer class="container">
+        <hr />
+        <p style={{ "text-align": "center" }}>
+          2026 &copy; The Genius Warlock (Taskeren).
+          <br />
+          <small>
+            Repository on{" "}
+            <a href="https://github.com/Taskeren/d2-starfire">GitHub</a> and
+            Hosted on Deno Deploy.
+            <br />
+            By the way, see <a href="https://activism.taske.ren">Activism Report</a> also.
+          </small>
+        </p>
+      </footer>
     </body>
   </html>
 );
