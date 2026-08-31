@@ -1,8 +1,8 @@
 import { HttpClient } from "bungie-api-ts/http";
 import { Context } from "hono";
 import { AuthorizationResponse, updateAuthByRefreshToken } from "./auth.ts";
-import { appToken } from "./main.ts";
-import logger from "./log.ts";
+import { appToken } from "../main.ts";
+import logger from "../log.ts";
 
 const log = logger("bungieApi");
 
