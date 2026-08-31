@@ -7,6 +7,7 @@ import { bungieClient } from "../components/bungie.ts";
 import { appId, HonoSpec } from "../main.ts";
 import { UserCard } from "./templates/d2.tsx";
 import logger from "../log.ts";
+import { AuthenticationError } from "../components/bungie.ts";
 
 const hono: HonoSpec = new Hono();
 
@@ -126,7 +127,7 @@ hono.get("/logout", (ctx) => {
 
 hono.get("/usercard", async (ctx) => {
   const loginAs = ctx.get("loginAs");
-  if (!loginAs) return ctx.text("Invalid authentication", 401);
+  if (!loginAs) throw new AuthenticationError();
 
   const c = bungieClient();
   const id = loginAs.membership_id;

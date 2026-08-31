@@ -5,10 +5,10 @@ import fs from "node:fs";
 import selfsigned from "selfsigned";
 import { authHono, AuthorizationResponse } from "./components/auth.ts";
 import { AuthenticationError } from "./components/bungie.ts";
-import d2 from "./routes/d2.ts";
-import { Homepage } from "./routes/templates/homepage.tsx";
 import logger from "./log.ts";
 import auth from "./routes/auth.ts";
+import d2 from "./routes/d2.ts";
+import root from "./routes/root.ts";
 
 const log = logger("main");
 
@@ -41,8 +41,8 @@ hono.onError((e, c) => {
       default:
         if (c.req.header("hx-request")) {
           // if the request is from htmx,
-          // ask it to refresh, so the login/logout button is updated.
-          c.header("hx-refresh", "true");
+          // redirect to 401 page, so that the user will know this, instead of silently refresh the page (hx-refresh).
+          c.header("hx-redirect", "/401");
           c.status(200);
         } else {
           // default unauthorized path.
@@ -61,24 +61,7 @@ export const appId = Deno.env.get("BG_CLIENT_ID");
 export const appSecret = Deno.env.get("BG_CLIENT_SECRET");
 export const appToken = Deno.env.get("BG_API_KEY");
 
-hono.get("/", (ctx) => {
-  const loginAs = ctx.get("loginAs");
-
-  switch (
-    accepts(ctx, {
-      header: "Accept",
-      supports: ["application/json", "text/html"],
-      default: "text/html",
-    })
-  ) {
-    case "application/json":
-      return ctx.json({ data: "Hello World! D2Starfire." });
-    case "text/html":
-    default:
-      return ctx.html(Homepage(Boolean(loginAs)));
-  }
-});
-
+hono.route("/", root);
 hono.route("/d2", d2);
 hono.route("/auth", auth);
 

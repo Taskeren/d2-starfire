@@ -12,9 +12,10 @@ import {
 } from "bungie-api-ts/social";
 import { Hono } from "hono";
 import { accepts } from "hono/accepts";
+import { AuthenticationError } from "../components/bungie.ts";
 import { bungieClient } from "../components/bungie.ts";
 import { HonoSpec } from "../main.ts";
-import { RequireLoginMessage, StaleFriendList } from "./templates/d2.tsx";
+import { StaleFriendList } from "./templates/d2.tsx";
 
 const hono: HonoSpec = new Hono();
 
@@ -36,7 +37,7 @@ export type UserInfoAndLastSeenDate = {
 
 hono.get("/stale-friend-list", async (ctx) => {
   const loginAs = ctx.get("loginAs");
-  if (!loginAs) return ctx.html(RequireLoginMessage(), 401);
+  if (!loginAs) throw new AuthenticationError();
 
   const c = bungieClient({ loginAs, ctx });
 
