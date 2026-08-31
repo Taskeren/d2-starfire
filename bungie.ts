@@ -1,11 +1,29 @@
 import { HttpClient } from "bungie-api-ts/http";
-import { AuthorizationResponse } from "./auth.ts";
+import { Context } from "hono";
+import { AuthorizationResponse, updateAuthByRefreshToken } from "./auth.ts";
 import { appToken } from "./main.ts";
+import logger from "./log.ts";
+
+const log = logger("bungieApi");
 
 export class AuthenticationError extends Error {}
 
-export function bungieClient(loginAs?: AuthorizationResponse): HttpClient {
-  return async (conf) => {
+export class BungieApiError extends Error {}
+
+export type BungieClientOptions = {
+  ctx?: Context;
+  loginAs?: AuthorizationResponse;
+};
+
+/**
+ * Send a request to Bungie with body and params.
+ *
+ * If the ctx is assigned, it may update the cookies inside, to update the login information if authentication error occurrs.
+ *
+ * @returns the result
+ */
+export function bungieClient(options?: BungieClientOptions): HttpClient {
+  const fetchOnly: HttpClient = async (conf) => {
     // process URL with search params
     const url = new URL(conf.url);
     if (conf.params) {
@@ -20,9 +38,12 @@ export function bungieClient(loginAs?: AuthorizationResponse): HttpClient {
     // prepare login information is provided
     const headers = new Headers();
     headers.set("X-API-Key", appToken);
-    if (loginAs) {
-      headers.set("Authorization", `Bearer ${loginAs.access_token}`);
+    if (options?.loginAs) {
+      headers.set("Authorization", `Bearer ${options?.loginAs.access_token}`);
     }
+
+    // log the requesting
+    log.debug("Sending request to Bungie API", url, conf.method, body);
 
     return await fetch(url, {
       method: conf.method,
@@ -36,28 +57,56 @@ export function bungieClient(loginAs?: AuthorizationResponse): HttpClient {
           "Authentication failure during Bungie API call!",
         );
       } else {
-        let body: string;
+        let response_text: string;
         try {
-          body = await response.text();
-        } catch (e) {
-          return console.error(
-            "Non-2xx response from Bungie API, and can't read the body.",
+          response_text = await response.text();
+        } catch (error) {
+          log.error(
+            "Received non-success (!2xx) response from Bungie API, and the response payload can't be read.",
             response.status,
-            e,
+            error,
           );
+          throw new BungieApiError();
         }
 
-        console.warn("Non-2xx response from Bungie API", response.status, body);
+        log.warn(
+          "Received non-success (!2xx) response from Bungie API",
+          response.status,
+          response_text,
+        );
 
         try {
           // happy if it can still be parsed to JSON (other errors).
-          return JSON.parse(body);
+          return JSON.parse(response_text);
         } catch (_e) {
           // expected malformed JSON body, could be XML or HTML, etc.
           // throwing to prevent from handling invalid data.
-          throw new Error("Non-JSON response from Bungie API.");
+          throw new BungieApiError();
         }
       }
     });
+  };
+
+  // a wrapper that handles authentication error for the first time.
+  return async (conf) => {
+    try {
+      return await fetchOnly(conf);
+    } catch (e: unknown) {
+      if (e instanceof AuthenticationError) {
+        if (options.ctx && options?.loginAs?.refresh_token) {
+          log.debug(
+            "Received unauthorized response (401), refreshing the token for the user.",
+          );
+          await updateAuthByRefreshToken(
+            options.ctx,
+            options.loginAs.refresh_token,
+          );
+          return await fetchOnly(conf);
+        }
+      }
+      // recovered once, or not authentication error, rethrow it to the upper level.
+      log.warn("Exception occurred while sending request to Bungie API", e);
+      throw e;
+    }
   };
 }

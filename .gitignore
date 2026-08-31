@@ -4,3 +4,6 @@ cert.pem
 
 # exclude local environments
 .env
+
+# exclude Rebased
+.idea/

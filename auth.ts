@@ -2,7 +2,10 @@ import { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
 import { SignJWT, jwtVerify } from "jose";
+import logger from "./log.ts";
 import { appId, appSecret } from "./main.ts";
+
+const log = logger("authentication");
 
 export type AuthorizationResponse = {
   access_token: string;
@@ -17,11 +20,16 @@ export type AuthorizationResponseWithIAT = AuthorizationResponse & {
   iat: number;
 };
 
-export type HandleCodeRequest =
+type HandleCodeRequest =
   | { grant_type: "authorization_code"; code: string }
   | { grant_type: "refresh_token"; refresh_token: string };
 
-export async function handleCode(
+/**
+ * Request Bungie OAuth services to get authentication data.
+ *
+ * @param request the pre-authentication data
+ */
+async function handleCode(
   request: HandleCodeRequest,
 ): Promise<AuthorizationResponse> {
   const body = new URLSearchParams();
@@ -51,9 +59,13 @@ export async function handleCode(
 
 const jwtSecret = new TextEncoder().encode("ILoveYouAndYouDontKnowIt");
 
-export const jwtAge = 7 * 24 * 60 * 60; // 7 days in seconds
+const jwtAge = 7 * 24 * 60 * 60; // 7 days in seconds
 
-export function signJwt(data: AuthorizationResponse): Promise<string> {
+/**
+ * @param data authentication data
+ * @returns a JWT-signed string
+ */
+function signJwt(data: AuthorizationResponse): Promise<string> {
   return new SignJWT({ ...data })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -62,7 +74,11 @@ export function signJwt(data: AuthorizationResponse): Promise<string> {
     .sign(jwtSecret);
 }
 
-export async function verifyJwt(
+/**
+ * @param header authentication data (header)
+ * @returns a decoded authentication data
+ */
+async function verifyJwt(
   header: string,
 ): Promise<AuthorizationResponseWithIAT | null> {
   if (!header) throw new Error("No authorization string provided");
@@ -80,13 +96,14 @@ export async function writeAuthCookieHono(
   data: AuthorizationResponse,
 ) {
   const jwt = await signJwt(data);
-  return setCookie(c, "passport", jwt, {
+  setCookie(c, "passport", jwt, {
     httpOnly: true,
     secure: true,
     sameSite: "lax",
     path: "/",
     maxAge: jwtAge,
   });
+  log.debug("Updated 'passport' cookie with latest authentication information");
 }
 
 export const authHono = createMiddleware<{
@@ -97,7 +114,7 @@ export const authHono = createMiddleware<{
   if (passport) {
     const data = await verifyJwt(passport);
     if (!data) {
-      console.log("Verify failure: " + passport);
+      log.debug("JWT verification failure", passport);
     } else {
       const expiresAt = data.iat + data.expires_in;
       if (expiresAt > Date.now() + 5 * 60 * 1000) {
@@ -113,6 +130,9 @@ export const authHono = createMiddleware<{
         }
 
         // refresh authorization information
+        log.debug(
+          "Decoded JWT access token has expired; refreshing token in auth middleware",
+        );
         const newAuth = await handleCode({
           grant_type: "refresh_token",
           refresh_token: data.refresh_token,
@@ -127,3 +147,38 @@ export const authHono = createMiddleware<{
 
   await next();
 });
+
+/**
+ * Get the access token by the authorization code from callback, and
+ * write to update the authentication cookies.
+ *
+ * @param ctx the request context
+ * @param code the authorization code
+ * @see {@link updateAuthByRefreshToken}
+ */
+export async function updateAuthByAuthorizationCode(
+  ctx: Context,
+  code: string,
+) {
+  const response = await handleCode({ grant_type: "authorization_code", code });
+  await writeAuthCookieHono(ctx, response);
+}
+
+/**
+ * Refresh the access token by the fresh token from the last access token, and
+ * write to update the authentication cookies.
+ *
+ * @param ctx the request context
+ * @param refresh_token the refresh token
+ * @see {@link updateAuthByAuthorizationCode}
+ */
+export async function updateAuthByRefreshToken(
+  ctx: Context,
+  refresh_token: string,
+) {
+  const response = await handleCode({
+    grant_type: "refresh_token",
+    refresh_token,
+  });
+  await writeAuthCookieHono(ctx, response);
+}

@@ -5,6 +5,7 @@
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@1",
+    "@std/log": "jsr:@std/log@^0.224.14",
     "cookie-parser": "npm:cookie-parser@^1.4.7",
     "express": "npm:express@5.2.1",
     "@types/express": "npm:@types/express@5.0.6",
@@ -18,8 +19,4 @@
     "app": "d2starfire"
   }
 }
-
-
-
-
 

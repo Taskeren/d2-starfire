@@ -28,3 +28,15 @@ I'd prefer to separate JSX/TSX from regular JS/TS scripts, like `d2.ts` and `d2.
 Before implementing a new feature, always open an issue to check if I wanted it, otherwise, there will be a chance that your PR is rejected.
 
 Keep everything in English, until there's an internationalization (i18n) framework.
+
+## Deployment
+
+Run `deno deploy` to deploy to Deno Deploy.
+
+And there are few environments required for production:
+
+| Environment Variable |          Description |
+| :------------------- | -------------------: |
+| `BG_API_KEY`         |       Bungie API key |
+| `BG_CLIENT_ID`       |     Bungie Client ID |
+| `BG_CLIENT_SECRET`   | Bungie Client Secret |

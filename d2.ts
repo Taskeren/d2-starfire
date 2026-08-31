@@ -38,7 +38,7 @@ hono.get("/stale-friend-list", async (ctx) => {
   const loginAs = ctx.get("loginAs");
   if (!loginAs) return ctx.html(RequireLoginMessage(), 401);
 
-  const c = bungieClient(loginAs);
+  const c = bungieClient({ loginAs, ctx });
 
   const getFriendListResponse = await getFriendList(c);
   if (getFriendListResponse.ErrorCode !== PlatformErrorCodes.Success) {

@@ -3,18 +3,20 @@ import { getBungieNetUserById } from "bungie-api-ts/user";
 import { Hono } from "hono";
 import { accepts } from "hono/accepts";
 import { deleteCookie } from "hono/cookie";
+import fs from "node:fs";
 import selfsigned from "selfsigned";
 import {
   authHono,
   AuthorizationResponse,
-  handleCode,
-  writeAuthCookieHono,
+  updateAuthByAuthorizationCode,
 } from "./auth.ts";
 import { AuthenticationError, bungieClient } from "./bungie.ts";
 import d2 from "./d2.ts";
-import { Homepage } from "./homepage.tsx";
-import fs from "node:fs";
 import { UserCard } from "./d2.tsx";
+import { Homepage } from "./homepage.tsx";
+import logger from "./log.ts";
+
+const log = logger("main");
 
 const hono = new Hono<{
   Variables: { loginAs: AuthorizationResponse | null };
@@ -43,11 +45,20 @@ hono.onError((e, c) => {
         return c.json({ message: "Authentication Invalid or Expired" }, 401);
       case "text/html":
       default:
-        return c.text("Authentication Invalid or Expired", 401);
+        if (c.req.header("hx-request")) {
+          // if the request is from htmx,
+          // ask it to refresh, so the login/logout button is updated.
+          c.header("hx-refresh", "true");
+          c.status(200);
+        } else {
+          // default unauthorized path.
+          c.status(401);
+        }
+        return c.text("Authentication Invalid or Expired");
     }
   }
 
-  console.warn("Exception during routing", e);
+  log.warn("Unhandled exception", e);
   return c.text("Internal Server Error", 500);
 });
 
@@ -86,11 +97,7 @@ hono.get("/auth/cb", async (ctx) => {
 
   if (!code) ctx.text("Missing granted code", 401);
 
-  const data = await handleCode({
-    grant_type: "authorization_code",
-    code: code as string,
-  });
-  await writeAuthCookieHono(ctx, data);
+  await updateAuthByAuthorizationCode(ctx, code);
 
   switch (
     accepts(ctx, {
