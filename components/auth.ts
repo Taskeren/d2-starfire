@@ -2,8 +2,8 @@ import { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
 import { SignJWT, jwtVerify } from "jose";
-import logger from "./log.ts";
-import { appId, appSecret } from "./main.ts";
+import logger from "../log.ts";
+import { appId, appSecret } from "../main.ts";
 
 const log = logger("authentication");
 

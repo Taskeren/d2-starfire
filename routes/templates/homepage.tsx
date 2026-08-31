@@ -1,8 +1,3 @@
-import { appId } from "./main.ts";
-
-const LoginUrl = () =>
-  `https://www.bungie.net/en/oauth/authorize?client_id=${appId}&response_type=code`;
-
 export const Homepage = (loggedIn: boolean) => (
   <html>
     <head>
@@ -31,7 +26,7 @@ export const Homepage = (loggedIn: boolean) => (
           <ul>
             <li>
               {!loggedIn ? (
-                <a href={LoginUrl()}>Log In</a>
+                <a href="/auth/login">Log In</a>
               ) : (
                 <a href="/auth/logout">Log Out</a>
               )}
@@ -61,7 +56,10 @@ export const Homepage = (loggedIn: boolean) => (
         <article>
           <header>
             <h3>Stale Friend List</h3>
-            <p>List the friend list of the current user, sorted by the last played date.</p>
+            <p>
+              List the friend list of the current user, sorted by the last
+              played date.
+            </p>
           </header>
           <button
             type="button"

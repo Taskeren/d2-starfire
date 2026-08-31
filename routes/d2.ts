@@ -12,9 +12,9 @@ import {
 } from "bungie-api-ts/social";
 import { Hono } from "hono";
 import { accepts } from "hono/accepts";
-import { bungieClient } from "./bungie.ts";
-import { HonoSpec } from "./main.ts";
-import { RequireLoginMessage, StaleFriendList } from "./d2.tsx";
+import { bungieClient } from "../components/bungie.ts";
+import { HonoSpec } from "../main.ts";
+import { RequireLoginMessage, StaleFriendList } from "./templates/d2.tsx";
 
 const hono: HonoSpec = new Hono();
 

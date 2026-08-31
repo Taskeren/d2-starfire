@@ -1,5 +1,8 @@
 import { FC, PropsWithChildren } from "hono/jsx";
 
+/**
+ * @deprecated
+ */
 export const Layout: FC<PropsWithChildren> = (props) => (
   <html>
     <head>

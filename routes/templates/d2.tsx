@@ -1,6 +1,6 @@
 import { GeneralUser } from "bungie-api-ts/user";
-import { getBungieName, UserInfoAndLastSeenDate } from "./d2.ts";
-import { Table } from "./tsx-helper.tsx";
+import { getBungieName, UserInfoAndLastSeenDate } from "../d2.ts";
+import { Table } from "./common.tsx";
 
 export const RequireLoginMessage = () => (
   <pre>This endpoint requires OAuth2 login.</pre>

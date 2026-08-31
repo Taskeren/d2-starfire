@@ -1,20 +1,14 @@
-import { PlatformErrorCodes } from "bungie-api-ts/destiny2";
-import { getBungieNetUserById } from "bungie-api-ts/user";
 import { Hono } from "hono";
 import { accepts } from "hono/accepts";
 import { deleteCookie } from "hono/cookie";
 import fs from "node:fs";
 import selfsigned from "selfsigned";
-import {
-  authHono,
-  AuthorizationResponse,
-  updateAuthByAuthorizationCode,
-} from "./auth.ts";
-import { AuthenticationError, bungieClient } from "./bungie.ts";
-import d2 from "./d2.ts";
-import { UserCard } from "./d2.tsx";
-import { Homepage } from "./homepage.tsx";
+import { authHono, AuthorizationResponse } from "./components/auth.ts";
+import { AuthenticationError } from "./components/bungie.ts";
+import d2 from "./routes/d2.ts";
+import { Homepage } from "./routes/templates/homepage.tsx";
 import logger from "./log.ts";
+import auth from "./routes/auth.ts";
 
 const log = logger("main");
 
@@ -59,6 +53,7 @@ hono.onError((e, c) => {
   }
 
   log.warn("Unhandled exception", e);
+  console.error(e);
   return c.text("Internal Server Error", 500);
 });
 
@@ -85,80 +80,7 @@ hono.get("/", (ctx) => {
 });
 
 hono.route("/d2", d2);
-
-hono.get("/auth/login", (ctx) => {
-  return ctx.redirect(
-    `https://www.bungie.net/en/oauth/authorize?client_id=${appId}&response_type=code`,
-  );
-});
-
-hono.get("/auth/cb", async (ctx) => {
-  const code = ctx.req.query("code");
-
-  if (!code) ctx.text("Missing granted code", 401);
-
-  await updateAuthByAuthorizationCode(ctx, code);
-
-  switch (
-    accepts(ctx, {
-      header: "Accept",
-      supports: ["application/json", "text/html"],
-      default: "text/html",
-    })
-  ) {
-    case "application/json":
-      return ctx.json({ data: "OK!" });
-    case "text/html":
-    default:
-      return ctx.redirect("/");
-  }
-});
-
-hono.get("/auth/logout", (ctx) => {
-  deleteCookie(ctx, "passport");
-  switch (
-    accepts(ctx, {
-      header: "Accept",
-      supports: ["application/json", "text/html"],
-      default: "text/html",
-    })
-  ) {
-    case "application/json":
-      return ctx.json({ data: "OK!" });
-    case "text/html":
-    default:
-      return ctx.redirect("/");
-  }
-});
-
-hono.get("/auth/usercard", async (ctx) => {
-  const loginAs = ctx.get("loginAs");
-  if (!loginAs) return ctx.text("Invalid authentication", 401);
-
-  const c = bungieClient();
-  const id = loginAs.membership_id;
-
-  const resp = await getBungieNetUserById(c, { id });
-  if (resp.ErrorCode !== PlatformErrorCodes.Success) {
-    return ctx.text("Bungie server failure", 500);
-  }
-
-  const u = resp.Response;
-
-  switch (
-    accepts(ctx, {
-      header: "Accept",
-      supports: ["application/json", "text/html"],
-      default: "application/json",
-    })
-  ) {
-    case "text/html":
-      return ctx.html(UserCard(u));
-    case "application/json":
-    default:
-      return ctx.json({ data: resp.Response });
-  }
-});
+hono.route("/auth", auth);
 
 if (import.meta.main) {
   if (Deno.env.get("DENO_DEPLOYMENT_ID")) {
